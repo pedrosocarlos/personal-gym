@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import type { BodyRecord, Exercise, ExerciseLog, Workout, WorkoutExerciseWithDetails } from '../types';
-import { seedExercisesFromObsidian } from './seed';
+import type { BodyRecord, Exercise, ExerciseLog, RepType, Workout, WorkoutExerciseWithDetails } from '../types';
+import { seedDatabase } from './seed';
 
 export async function initDb(db: SQLiteDatabase): Promise<void> {
   // Core tables
@@ -44,13 +44,18 @@ export async function initDb(db: SQLiteDatabase): Promise<void> {
     INSERT OR IGNORE INTO app_state (key, value) VALUES ('current_workout_index', '0');
   `);
 
-  // ── Migration: add muscle_group column (safe: ignore if already exists) ──
+  // ── Migration: add muscle_group column ───────────────────────────────────
   try {
-    await db.execAsync(
-      "ALTER TABLE exercises ADD COLUMN muscle_group TEXT DEFAULT 'Full Body';"
-    );
-  } catch {
-    // Column already present — safe to continue
+    await db.execAsync("ALTER TABLE exercises ADD COLUMN muscle_group TEXT DEFAULT 'Full Body';");
+  } catch { /* already exists */ }
+
+  // ── Migration: rep type columns on workout_exercises ─────────────────────
+  for (const sql of [
+    "ALTER TABLE workout_exercises ADD COLUMN rep_type TEXT NOT NULL DEFAULT 'fixed';",
+    'ALTER TABLE workout_exercises ADD COLUMN reps_per_set TEXT;',
+    'ALTER TABLE workout_exercises ADD COLUMN drop_reduction_pct INTEGER;',
+  ]) {
+    try { await db.execAsync(sql); } catch { /* already exists */ }
   }
 
   // ── Feature tables ────────────────────────────────────────────────────────
@@ -80,7 +85,7 @@ export async function initDb(db: SQLiteDatabase): Promise<void> {
       ON body_records (date ASC);
   `);
 
-  await seedExercisesFromObsidian(db);
+  await seedDatabase(db);
 }
 
 // ─── Exercises ───────────────────────────────────────────────────────────────
@@ -164,7 +169,10 @@ export async function addExerciseToWorkout(
   exerciseId: number,
   sets: number,
   reps: number,
-  restSeconds: number
+  restSeconds: number,
+  repType: RepType = 'fixed',
+  repsPerSet: string | null = null,
+  dropReductionPct: number | null = null,
 ): Promise<void> {
   const row = await db.getFirstAsync<{ max_pos: number }>(
     'SELECT COALESCE(MAX(position), -1) as max_pos FROM workout_exercises WHERE workout_id=?',
@@ -172,9 +180,10 @@ export async function addExerciseToWorkout(
   );
   const nextPos = (row?.max_pos ?? -1) + 1;
   await db.runAsync(
-    `INSERT INTO workout_exercises (workout_id, exercise_id, sets, reps, rest_seconds, position)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [workoutId, exerciseId, sets, reps, restSeconds, nextPos]
+    `INSERT INTO workout_exercises
+       (workout_id, exercise_id, sets, reps, rest_seconds, position, rep_type, reps_per_set, drop_reduction_pct)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [workoutId, exerciseId, sets, reps, restSeconds, nextPos, repType, repsPerSet, dropReductionPct]
   );
 }
 
@@ -183,11 +192,14 @@ export async function updateWorkoutExercise(
   id: number,
   sets: number,
   reps: number,
-  restSeconds: number
+  restSeconds: number,
+  repType: RepType = 'fixed',
+  repsPerSet: string | null = null,
+  dropReductionPct: number | null = null,
 ): Promise<void> {
   await db.runAsync(
-    'UPDATE workout_exercises SET sets=?, reps=?, rest_seconds=? WHERE id=?',
-    [sets, reps, restSeconds, id]
+    'UPDATE workout_exercises SET sets=?, reps=?, rest_seconds=?, rep_type=?, reps_per_set=?, drop_reduction_pct=? WHERE id=?',
+    [sets, reps, restSeconds, repType, repsPerSet, dropReductionPct, id]
   );
 }
 

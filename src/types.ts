@@ -38,6 +38,8 @@ export const SYNERGIST_CONFLICTS: Partial<Record<string, string[]>> = {
 
 // ─── Domain types ────────────────────────────────────────────────────────────
 
+export type RepType = 'fixed' | 'descending' | 'dropset';
+
 export interface Exercise {
   id: number;
   name: string;
@@ -63,6 +65,9 @@ export interface WorkoutExercise {
   reps: number;
   rest_seconds: number;
   position: number;
+  rep_type: RepType;
+  reps_per_set: string | null;   // JSON number array — used when rep_type = 'descending'
+  drop_reduction_pct: number | null; // % load reduction per drop — used when rep_type = 'dropset'
 }
 
 export interface WorkoutExerciseWithDetails extends WorkoutExercise {
