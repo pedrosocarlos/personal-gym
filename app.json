@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Personal Gym",
+    "slug": "personal-gym",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0F0F0F"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0F0F0F"
+      },
+      "package": "com.personalgym.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permite selecionar fotos para os exercícios."
+        }
+      ],
+      "expo-sqlite"
+    ],
+    "assetBundlePatterns": [
+      "assets/**"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e0b79af2-75dc-48bf-94b3-d07683a55326"
+      }
+    }
+  }
+}
