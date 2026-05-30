@@ -1,4 +1,5 @@
 node_modules/
 .expo/
 *.db
+!assets/personal_gym.db
 .env
